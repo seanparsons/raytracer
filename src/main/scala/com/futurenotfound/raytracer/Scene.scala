@@ -2,12 +2,12 @@ package com.futurenotfound.raytracer
 
 import collection.GenSeq
 
-case class Scene(val camera: Camera,
-                 val viewport: Viewport,
-                 val lights: Seq[Light],
-                 val sceneContents: Seq[SceneObject]) {
-  val black = new Colour(0, 0, 0)
-  val allSceneObjects = lights ++ sceneContents
+case class Scene(final val camera: Camera,
+                 final val viewport: Viewport,
+                 final val lights: Seq[Light],
+                 final val sceneContents: Seq[SceneObject]) {
+  final val black = new Colour(0, 0, 0)
+  final val allSceneObjects = lights ++ sceneContents
 
   def draw(maxDepth: Int): GenSeq[Line[Colour]] = {
     camera.drawRays(viewport).par.map{line =>
@@ -71,5 +71,5 @@ case class Scene(val camera: Camera,
 }
 
 object Scene{
-  val epsilon = 0.0001d
+  final val epsilon = 0.0001d
 }

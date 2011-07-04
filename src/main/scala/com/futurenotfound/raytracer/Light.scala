@@ -1,3 +1,3 @@
 package com.futurenotfound.raytracer
 
-case class Light(val centre: PositionVector, val radius: Double, val material: Material) extends SphericalSceneObject
+case class Light(final val centre: PositionVector, final val radius: Double, final val material: Material) extends SphericalSceneObject

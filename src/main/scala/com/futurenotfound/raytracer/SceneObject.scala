@@ -8,10 +8,10 @@ trait SceneObject{
   def normal(point: PositionVector): DirectionVector
 }
 
-case class Intersection(val location: PositionVector,
-                        val externalHit: Boolean,
-                        val material: Material,
-                        val sceneObject: SceneObject) {
+case class Intersection(final val location: PositionVector,
+                        final val externalHit: Boolean,
+                        final val material: Material,
+                        final val sceneObject: SceneObject) {
   def distance(vector: PositionVector) = location.distance(vector)
 }
 

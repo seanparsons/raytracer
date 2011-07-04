@@ -1,3 +1,3 @@
 package com.futurenotfound.raytracer
 
-case class Material(val colour: Colour, val diffuse: Double, val reflectivity: Double)
+case class Material(final val colour: Colour, final val diffuse: Double, final val reflectivity: Double)

@@ -5,11 +5,12 @@ abstract class Ray {
   def direction: DirectionVector
   def depth: Int
   def distance: Int
-  final val end = origin + new PositionVector(direction.x * distance, direction.y * distance, direction.z * distance)
-  final val difference = end - origin
+  final lazy val end = origin + new PositionVector(direction.x * distance, direction.y * distance, direction.z * distance)
+  final lazy val difference = end - origin
 }
 
-case class CameraRay(final val origin: PositionVector,
+case class CameraRay(final val screenPoint: ScreenPoint,
+                     final val origin: PositionVector,
                      final val direction: DirectionVector,
                      final val depth: Int,
                      final val distance: Int) extends Ray {

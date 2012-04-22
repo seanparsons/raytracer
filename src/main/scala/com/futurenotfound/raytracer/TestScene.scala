@@ -1,50 +1,33 @@
 package com.futurenotfound.raytracer
 
-import swing.{MainFrame, SimpleSwingApplication, Component}
-import javax.swing.JPanel
 import scala.swing._
-import event.{MouseClicked, MouseMoved}
-import java.awt.{Event, Color, Graphics, Panel}
-import java.awt.event.{MouseMotionListener, MouseEvent}
-import scala.concurrent.ops._
+import java.awt.Color
 import java.util.concurrent.atomic.AtomicInteger
-import javax.imageio.ImageIO
 import java.awt.image.BufferedImage._
-import java.awt.image.{Raster, BufferedImage}
+import java.awt.image.BufferedImage
+import akka.actor._
+import com.typesafe.config.ConfigFactory
+import akka.routing._
+import akka.util.duration._
 
 object RayTracer extends SimpleSwingApplication {
-  def toAwtColor(colour: Colour): Color = {
-    return new Color(colour.red.toFloat, colour.green.toFloat, colour.blue.toFloat)
-  }
+  val config = ConfigFactory.load("akka.conf")
+  val actorSystem = ActorSystem("actorSystem", config)
 
   val sceneCount = new AtomicInteger(0)
   def top = new MainFrame {
-    def updateFrame(image: BufferedImage) = {
-      contents = new Component(){
-        peer.setDoubleBuffered(true)
-        override def paint(graphics: Graphics2D) = {
-          graphics.drawImage(image, 0, 0, image.getWidth, image.getHeight, null)
-        }
-      }
-      size = new Dimension(820, 620)
-    }
     val button = new Button {
       text = "Start"
       action = Action("Start") {
-        spawn {
-          val start = System.nanoTime()
-          val stepper = new SceneStepper()
-          stepper.sceneStream.foreach{scene =>
-            val renderedScene = scene.draw(5)
-            val image = new BufferedImage(scene.viewport.horizontalResolution, scene.viewport.verticalResolution, TYPE_INT_RGB)
-            val intValues = renderedScene.flatMap(line => line.points.flatMap(colour => Vector((colour.red * 255).toInt, (colour.green * 255).toInt, (colour.blue * 255).toInt))).toArray[Int]
-            val raster = image.getData.createCompatibleWritableRaster()
-            raster.setPixels(0, 0, image.getWidth, image.getHeight, intValues)
-            image.setData(raster)
-            updateFrame(image)
-          }
-          println("Time taken = %s".format(System.nanoTime() - start))
-        }
+        val customPaintComponent = new CustomPaintComponent(800, 600)
+        val stepper = new SceneStepper()
+        contents = customPaintComponent
+        val resizer = DefaultResizer(lowerBound = 10, upperBound = 100)
+        val customComponentActor = actorSystem.actorOf(Props(new CustomPaintComponentActor(customPaintComponent)).withDispatcher("swing-dispatcher"))
+        val workers = actorSystem.actorOf(Props[SceneRaytraceActor].withRouter(RoundRobinRouter(resizer = Some(resizer))))
+        val coordinatorActor = actorSystem.actorOf(Props(new SceneCoordinatorActor((positionColour) => customComponentActor ! positionColour, workers, stepper.sceneStream.iterator)).withDispatcher("isolated-dispatcher"), name = "coordinatorActor")
+        actorSystem.scheduler.schedule(0.seconds, 100.milliseconds, customComponentActor, UpdateCustomPaintComponent)
+        coordinatorActor ! StartDrawing
       }
     }
     title = "Test Scene"
@@ -52,7 +35,37 @@ object RayTracer extends SimpleSwingApplication {
     size = new Dimension(820, 620)
     minimumSize = size
   }
+
+  override def shutdown() {
+    super.shutdown()
+    actorSystem.shutdown()
+  }
 }
+
+case class CustomPaintComponent(width: Int, height: Int) extends Component {
+  peer.setDoubleBuffered(true)
+  val image = new BufferedImage(width, height, TYPE_INT_RGB)
+
+  override protected def paintComponent(graphics: Graphics2D) {
+    super.paintComponent(graphics)
+    println("paintComponent")
+    graphics.drawImage(image, 0, 0, image.getWidth, image.getHeight, null)
+  }
+}
+
+case class CustomPaintComponentActor(customPaintComponent: CustomPaintComponent) extends Actor {
+  def receive = {
+    case positionColour: PositionColour => {
+      val color = new Color((positionColour.colour.red * 255).toInt, (positionColour.colour.green * 255).toInt, (positionColour.colour.blue * 255).toInt)
+      customPaintComponent.image.setRGB(positionColour.x, positionColour.y, color.getRGB)
+    }
+    case UpdateCustomPaintComponent => {
+      customPaintComponent.repaint()
+    }
+  }
+}
+
+object UpdateCustomPaintComponent
 
 case class SceneStepper() {
   val baseScene = new TestScene()

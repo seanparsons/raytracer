@@ -19,3 +19,5 @@ libraryDependencies += "junit" % "junit" % "4.8.2" % "test"
 libraryDependencies += "org.mockito" % "mockito-all" % "1.8.5" % "test"  
 
 fork in run := true
+
+javaOptions in run += "-Xmx2G"
